@@ -21,6 +21,7 @@ import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Namer;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.reflect.HasPublicType;
 import org.gradle.api.reflect.TypeOf;
 import org.gradle.internal.Actions;
@@ -87,5 +88,15 @@ public abstract class AbstractNamedDomainObjectContainer<T> extends DefaultNamed
     @Override
     public TypeOf<?> getPublicType() {
         return parameterizedTypeOf(new TypeOf<NamedDomainObjectContainer<?>>() {}, typeOf(getType()));
+    }
+
+    @Override
+    public Provider<T> register(String name) throws InvalidUserDataException {
+        return addLater();
+    }
+
+    @Override
+    public Provider<T> register(String name, Action<? super T> configurationAction) throws InvalidUserDataException {
+        return null;
     }
 }
