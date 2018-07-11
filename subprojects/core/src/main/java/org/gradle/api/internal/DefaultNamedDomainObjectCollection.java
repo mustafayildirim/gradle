@@ -24,6 +24,7 @@ import org.gradle.api.NamedDomainObjectCollection;
 import org.gradle.api.Namer;
 import org.gradle.api.Rule;
 import org.gradle.api.UnknownDomainObjectException;
+import org.gradle.api.UnknownTaskException;
 import org.gradle.api.internal.collections.CollectionEventRegister;
 import org.gradle.api.internal.collections.CollectionFilter;
 import org.gradle.api.internal.collections.ElementSource;
@@ -330,6 +331,12 @@ public class DefaultNamedDomainObjectCollection<T> extends DefaultDomainObjectCo
 
     public T getAt(String name) throws UnknownDomainObjectException {
         return getByName(name);
+    }
+
+    @Override
+    public Provider<T> named(String name) throws UnknownTaskException {
+        // TODO: 
+        return null;
     }
 
     @Override
