@@ -28,7 +28,7 @@ public interface PhysicalSnapshotVisitor {
      *
      * @return whether the subtree should be visited.
      */
-    boolean preVisitDirectory(PhysicalSnapshot directorySnapshot);
+    boolean preVisitDirectory(PhysicalDirectorySnapshot directorySnapshot);
 
     /**
      * Called for each regular/missing file.

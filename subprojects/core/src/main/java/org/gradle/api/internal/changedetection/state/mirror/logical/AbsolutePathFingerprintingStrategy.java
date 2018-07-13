@@ -19,6 +19,7 @@ package org.gradle.api.internal.changedetection.state.mirror.logical;
 import com.google.common.collect.ImmutableMap;
 import org.gradle.api.internal.changedetection.state.NonNormalizedFileSnapshot;
 import org.gradle.api.internal.changedetection.state.NormalizedFileSnapshot;
+import org.gradle.api.internal.changedetection.state.mirror.PhysicalDirectorySnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.PhysicalSnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.PhysicalSnapshotVisitor;
 import org.gradle.internal.file.FileType;
@@ -42,7 +43,7 @@ public class AbsolutePathFingerprintingStrategy implements FingerprintingStrateg
             root.accept(new PhysicalSnapshotVisitor() {
 
                 @Override
-                public boolean preVisitDirectory(PhysicalSnapshot directorySnapshot) {
+                public boolean preVisitDirectory(PhysicalDirectorySnapshot directorySnapshot) {
                     String absolutePath = directorySnapshot.getAbsolutePath();
                     if (processedEntries.add(absolutePath)) {
                         builder.put(absolutePath, new NonNormalizedFileSnapshot(directorySnapshot));

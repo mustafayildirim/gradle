@@ -26,6 +26,7 @@ import org.gradle.api.internal.changedetection.state.NormalizedFileSnapshot;
 import org.gradle.api.internal.changedetection.state.ResourceFilter;
 import org.gradle.api.internal.changedetection.state.ResourceHasher;
 import org.gradle.api.internal.changedetection.state.ResourceSnapshotterCacheService;
+import org.gradle.api.internal.changedetection.state.mirror.PhysicalDirectorySnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.PhysicalFileSnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.PhysicalSnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.PhysicalSnapshotVisitor;
@@ -110,7 +111,7 @@ public class ClasspathFingerprintingStrategy implements FingerprintingStrategy {
         }
 
         @Override
-        public boolean preVisitDirectory(PhysicalSnapshot directorySnapshot) {
+        public boolean preVisitDirectory(PhysicalDirectorySnapshot directorySnapshot) {
             relativePathTracker.enter(directorySnapshot);
             return delegate.preVisitDirectory(directorySnapshot);
         }

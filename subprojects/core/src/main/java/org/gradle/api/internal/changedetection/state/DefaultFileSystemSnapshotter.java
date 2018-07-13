@@ -24,6 +24,7 @@ import org.gradle.api.file.FileVisitor;
 import org.gradle.api.internal.cache.StringInterner;
 import org.gradle.api.internal.changedetection.state.mirror.FilteredPhysicalSnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.ImmutablePhysicalDirectorySnapshot;
+import org.gradle.api.internal.changedetection.state.mirror.MerkleDirectorySnapshotBuilder;
 import org.gradle.api.internal.changedetection.state.mirror.MirrorUpdatingDirectoryWalker;
 import org.gradle.api.internal.changedetection.state.mirror.MutablePhysicalDirectorySnapshot;
 import org.gradle.api.internal.changedetection.state.mirror.MutablePhysicalSnapshot;
@@ -207,7 +208,9 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
         });
         PhysicalSnapshot rootSnapshot = root.get();
         if (rootSnapshot != null) {
-            return rootSnapshot;
+            MerkleDirectorySnapshotBuilder builder = new MerkleDirectorySnapshotBuilder();
+            rootSnapshot.accept(builder);
+            return builder.getResult();
         }
         return PhysicalSnapshot.EMPTY;
     }
@@ -247,7 +250,7 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
             case Missing:
                 return new PhysicalMissingSnapshot(path, name);
             case Directory:
-                return new ImmutablePhysicalDirectorySnapshot(path, name, ImmutableList.<PhysicalSnapshot>of());
+                return new ImmutablePhysicalDirectorySnapshot(path, name, ImmutableList.<PhysicalSnapshot>of(), null);
             case RegularFile:
                 return new PhysicalFileSnapshot(path, name, hasher.hash(file, stat), stat.getLastModified());
             default:

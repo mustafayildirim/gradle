@@ -43,7 +43,7 @@ class MutablePhysicalDirectorySnapshotTest extends Specification {
             private final relativePathTracker = new RelativePathTracker()
 
             @Override
-            boolean preVisitDirectory(PhysicalSnapshot directorySnapshot) {
+            boolean preVisitDirectory(PhysicalDirectorySnapshot directorySnapshot) {
                 def isRoot = relativePathTracker.root
                 relativePathTracker.enter(directorySnapshot)
                 if (!isRoot) {

@@ -67,7 +67,7 @@ class FilteredPhysicalSnapshotTest extends AbstractProjectBuilderSpec {
         def result = [] as Set
         new FilteredPhysicalSnapshot(patterns.asSpec, unfiltered, fileSystem).accept(new PhysicalSnapshotVisitor() {
             @Override
-            boolean preVisitDirectory(PhysicalSnapshot directorySnapshot) {
+            boolean preVisitDirectory(PhysicalDirectorySnapshot directorySnapshot) {
                 result << new File(directorySnapshot.absolutePath)
                 return true
             }

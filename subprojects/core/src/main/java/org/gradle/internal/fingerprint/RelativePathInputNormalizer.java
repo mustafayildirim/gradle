@@ -14,24 +14,13 @@
  * limitations under the License.
  */
 
-package org.gradle.api.internal.changedetection.state.mirror;
+package org.gradle.internal.fingerprint;
 
-import org.gradle.internal.hash.HashCode;
-import org.gradle.internal.hash.Hashing;
+import org.gradle.api.internal.changedetection.state.FileCollectionSnapshotter;
+import org.gradle.api.tasks.FileNormalizer;
 
-import javax.annotation.Nullable;
-
-public interface PhysicalDirectorySnapshot extends PhysicalSnapshot {
-    HashCode SIGNATURE = Hashing.md5().hashString(PhysicalDirectorySnapshot.class.getName());
-
-    Iterable<? extends PhysicalSnapshot> getChildren();
-
-    @Override
-    HashCode getContentHash();
-
-    /**
-     * The tree hash of a directory is the combined hash of all its children.
-     */
-    @Nullable
-    HashCode getTreeHash();
+/**
+ * {@link FileNormalizer} that uses the location of files in a hierarchy as normalized paths.
+ */
+public interface RelativePathInputNormalizer extends FileCollectionSnapshotter, FileNormalizer {
 }
