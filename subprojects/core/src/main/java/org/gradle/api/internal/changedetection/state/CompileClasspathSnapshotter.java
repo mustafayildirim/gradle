@@ -18,7 +18,7 @@ package org.gradle.api.internal.changedetection.state;
 
 /**
  * Responsible for calculating a {@link FileCollectionSnapshot} for a {@link org.gradle.api.file.FileCollection} representing a Java
- * compile classpath. Compared to {@link GenericFileCollectionSnapshotter} this snapshotter orders files within any sub-tree.
+ * compile classpath. Compared to {@link org.gradle.internal.fingerprint.RelativePathInputNormalizer} this fingerprinter orders files within any sub-tree.
  *
  * @see org.gradle.api.tasks.CompileClasspath
  */
