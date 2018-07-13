@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-package org.gradle.api.internal.changedetection.state;
+@NonNullApi
+package org.gradle.internal.fingerprint.impl;
 
-/**
- * Responsible for calculating a {@link FileCollectionSnapshot} for a {@link org.gradle.api.file.FileCollection} representing a Java
- * compile classpath. Compared to {@link org.gradle.internal.fingerprint.RelativePathInputNormalizer} this fingerprinter orders files within any sub-tree.
- *
- * @see org.gradle.api.tasks.CompileClasspath
- */
-public interface CompileClasspathSnapshotter extends FileCollectionSnapshotter {
-}
+import org.gradle.api.NonNullApi;

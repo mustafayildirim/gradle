@@ -22,6 +22,7 @@ import org.gradle.api.internal.changedetection.rules.CollectingTaskStateChangeVi
 import org.gradle.api.internal.changedetection.rules.FileChange
 import org.gradle.api.internal.file.TestFiles
 import org.gradle.api.internal.file.collections.ImmutableFileCollection
+import org.gradle.internal.fingerprint.impl.DefaultAbsolutePathInputNormalizer
 import org.gradle.internal.hash.TestFileHasher
 import org.gradle.normalization.internal.InputNormalizationStrategy
 import org.gradle.test.fixtures.file.TestFile
@@ -30,12 +31,10 @@ import org.gradle.util.ChangeListener
 import org.junit.Rule
 import spock.lang.Specification
 
-import static PathNormalizationStrategy.ABSOLUTE
-
-class DefaultGenericFileCollectionSnapshotterTest extends Specification {
+class DefaultAbsolutePathInputNormalizerTest extends Specification {
     def stringInterner = new StringInterner()
     def fileSystemMirror = new DefaultFileSystemMirror(Stub(WellKnownFileLocations))
-    def snapshotter = new DefaultGenericFileCollectionSnapshotter(stringInterner, TestFiles.directoryFileTreeFactory(), new DefaultFileSystemSnapshotter(new TestFileHasher(), stringInterner, TestFiles.fileSystem(), TestFiles.directoryFileTreeFactory(), fileSystemMirror))
+    def snapshotter = new DefaultAbsolutePathInputNormalizer(stringInterner, TestFiles.directoryFileTreeFactory(), new DefaultFileSystemSnapshotter(new TestFileHasher(), stringInterner, TestFiles.fileSystem(), TestFiles.directoryFileTreeFactory(), fileSystemMirror))
     def listener = Mock(ChangeListener)
     def normalizationStrategy = InputNormalizationStrategy.NOT_CONFIGURED
     @Rule
@@ -48,7 +47,7 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file3 = tmpDir.createFile('file3')
 
         when:
-        def snapshot = snapshotter.snapshot(files(file, file2, file3), ABSOLUTE, normalizationStrategy)
+        def snapshot = snapshotter.snapshot(files(file, file2, file3), normalizationStrategy)
 
         then:
         snapshot.snapshots.keySet().collect { new File(it) } == [file, file2, file3]
@@ -63,7 +62,7 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile noExist = tmpDir.file('file3')
 
         when:
-        def snapshot = snapshotter.snapshot(files(file, dir, noExist), ABSOLUTE, normalizationStrategy)
+        def snapshot = snapshotter.snapshot(files(file, dir, noExist), normalizationStrategy)
 
         then:
         snapshot.snapshots.keySet().collect { new File(it) } == [file, dir, dir2, file2, noExist]
@@ -77,7 +76,7 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file4 = tmpDir.createFile('file4')
 
         when:
-        def snapshot = snapshotter.snapshot(files(file, file2, file3, file4), ABSOLUTE, normalizationStrategy)
+        def snapshot = snapshotter.snapshot(files(file, file2, file3, file4), normalizationStrategy)
 
         then:
         snapshot.snapshots.keySet().collect { new File(it) } == [file, file2, file3, file4]
@@ -89,9 +88,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file2 = tmpDir.createFile('file2')
 
         when:
-        def snapshot = snapshotter.snapshot(files(file1), ABSOLUTE, normalizationStrategy)
+        def snapshot = snapshotter.snapshot(files(file1), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file1, file2), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file1, file2), normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.added(file2.path)
@@ -106,9 +105,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file4 = tmpDir.createDir('file4')
 
         when:
-        def snapshot = snapshotter.snapshot(files(file1, file2), ABSOLUTE, normalizationStrategy)
+        def snapshot = snapshotter.snapshot(files(file1, file2), normalizationStrategy)
         file2.createFile()
-        def target = snapshotter.snapshot(files(file1, file2, file3, file4), ABSOLUTE, normalizationStrategy)
+        def target = snapshotter.snapshot(files(file1, file2, file3, file4), normalizationStrategy)
         def visitor = new CollectingTaskStateChangeVisitor()
         target.visitChangesSince(snapshot, "TYPE", false, visitor)
         visitor.changes.empty
@@ -123,9 +122,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file2 = tmpDir.createFile('file2')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file1, file2), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file1, file2), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file1), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file1), normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.removed(file2.path)
@@ -138,12 +137,12 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         file.setLastModified(1234L)
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file), normalizationStrategy), snapshot, listener)
         file.setLastModified(45600L)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file), normalizationStrategy), snapshot, listener)
 
         then:
         0 * listener._
@@ -156,11 +155,11 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         def fileCollection = files(root)
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, normalizationStrategy)
         file.delete()
         file.createDir()
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(fileCollection, normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.changed(file.path)
@@ -171,10 +170,10 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file = tmpDir.createFile('file')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), normalizationStrategy)
         file.write('new content')
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file), normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.changed(file.path)
@@ -185,9 +184,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile dir = tmpDir.createDir('dir')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(dir), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(dir), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(dir), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(dir), normalizationStrategy), snapshot, listener)
 
         then:
         0 * _
@@ -199,11 +198,11 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile dir = root.createDir('dir')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, normalizationStrategy)
         dir.deleteDir()
         dir.createFile()
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(fileCollection, normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.changed(dir.path)
@@ -214,9 +213,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file = tmpDir.file('unknown')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file), normalizationStrategy), snapshot, listener)
 
         then:
         0 * _
@@ -228,10 +227,10 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file = root.file('newfile')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, normalizationStrategy)
         file.createFile()
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(fileCollection, normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.added(file.path)
@@ -243,10 +242,10 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file = root.createFile('file')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(fileCollection, normalizationStrategy)
         file.delete()
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(fileCollection, ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(fileCollection, normalizationStrategy), snapshot, listener)
 
         then:
         1 * listener.removed(file.path)
@@ -257,9 +256,9 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
         TestFile file2 = tmpDir.createFile('file')
 
         when:
-        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file1, file2), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot snapshot = snapshotter.snapshot(files(file1, file2), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
-        changes(snapshotter.snapshot(files(file1), ABSOLUTE, normalizationStrategy), snapshot, listener)
+        changes(snapshotter.snapshot(files(file1), normalizationStrategy), snapshot, listener)
 
         then:
         0 * _
@@ -270,7 +269,7 @@ class DefaultGenericFileCollectionSnapshotterTest extends Specification {
 
         when:
         FileCollectionSnapshot snapshot = EmptyFileCollectionSnapshot.INSTANCE
-        FileCollectionSnapshot newSnapshot = snapshotter.snapshot(files(file), ABSOLUTE, normalizationStrategy)
+        FileCollectionSnapshot newSnapshot = snapshotter.snapshot(files(file), normalizationStrategy)
         fileSystemMirror.beforeTaskOutputChanged()
         changes(newSnapshot, snapshot, listener)
 

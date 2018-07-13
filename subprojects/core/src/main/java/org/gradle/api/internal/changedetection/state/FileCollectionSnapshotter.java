@@ -34,5 +34,5 @@ public interface FileCollectionSnapshotter {
     /**
      * Creates a snapshot of the contents of the given collection.
      */
-    FileCollectionSnapshot snapshot(FileCollection files, PathNormalizationStrategy pathNormalizationStrategy, InputNormalizationStrategy inputNormalizationStrategy);
+    FileCollectionSnapshot snapshot(FileCollection files, InputNormalizationStrategy inputNormalizationStrategy);
 }
