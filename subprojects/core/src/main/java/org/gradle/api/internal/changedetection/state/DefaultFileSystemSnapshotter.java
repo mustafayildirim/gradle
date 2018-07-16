@@ -41,6 +41,7 @@ import org.gradle.cache.internal.ProducerGuard;
 import org.gradle.caching.internal.BuildCacheHasher;
 import org.gradle.caching.internal.DefaultBuildCacheHasher;
 import org.gradle.internal.Factory;
+import org.gradle.internal.MutableBoolean;
 import org.gradle.internal.MutableReference;
 import org.gradle.internal.file.FileMetadataSnapshot;
 import org.gradle.internal.file.FileType;
@@ -150,17 +151,14 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
         if (snapshot != null) {
             return filterSnapshot(snapshot, patterns);
         }
-        if (!patterns.isEmpty()) {
-            return snapshotWithoutCaching(dirTree);
-        }
         return producingTrees.guardByKey(path, new Factory<PhysicalSnapshot>() {
             @Override
             public PhysicalSnapshot create() {
                 PhysicalSnapshot snapshot = fileSystemMirror.getDirectoryTree(path);
                 if (snapshot == null) {
-                    return snapshotAndCache(dirTree);
+                    return snapshotAndCache(dirTree, patterns);
                 } else {
-                    return snapshot;
+                    return filterSnapshot(snapshot, patterns);
                 }
             }
         });
@@ -215,19 +213,14 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
         return PhysicalSnapshot.EMPTY;
     }
 
-    private PhysicalSnapshot snapshotAndCache(DirectoryFileTree directoryTree) {
+    private PhysicalSnapshot snapshotAndCache(DirectoryFileTree directoryTree, PatternSet patterns) {
         PhysicalSnapshot fileSnapshot = snapshotSelf(directoryTree.getDir());
-        PhysicalSnapshot visitableDirectoryTree = mirrorUpdatingDirectoryWalker.walk(fileSnapshot);
-        fileSystemMirror.putDirectory(fileSnapshot.getAbsolutePath(), visitableDirectoryTree);
+        MutableBoolean hasBeenFiltered = new MutableBoolean(false);
+        PhysicalSnapshot visitableDirectoryTree = mirrorUpdatingDirectoryWalker.walk(fileSnapshot, patterns, hasBeenFiltered);
+        if (!hasBeenFiltered.get()) {
+            fileSystemMirror.putDirectory(fileSnapshot.getAbsolutePath(), visitableDirectoryTree);
+        }
         return visitableDirectoryTree;
-    }
-
-    /*
-     * We don't reuse code between this and #snapshotAndCache, because we can avoid
-     * some defensive copying when the result won't be shared.
-     */
-    private PhysicalSnapshot snapshotWithoutCaching(DirectoryFileTree directoryTree) {
-        return mirrorUpdatingDirectoryWalker.walk(snapshotSelf(directoryTree.getDir()), directoryTree.getPatterns());
     }
 
     private PhysicalSnapshot filterSnapshot(final PhysicalSnapshot snapshot, PatternSet patterns) {
