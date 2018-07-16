@@ -17,7 +17,6 @@
 package org.gradle.api.internal.changedetection.state.mirror.logical;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Iterables;
 import org.gradle.api.internal.cache.StringInterner;
 import org.gradle.api.internal.changedetection.state.DefaultNormalizedFileSnapshot;
@@ -70,9 +69,8 @@ public class ClasspathFingerprintingStrategy implements FingerprintingStrategy {
         ImmutableMap.Builder<String, NormalizedFileSnapshot> builder = ImmutableMap.builder();
         HashSet<String> processedEntries = new HashSet<String>();
         for (PhysicalSnapshot root : roots) {
-            ClasspathSnapshotVisitor snapshotVisitor = new ClasspathSnapshotVisitor(processedEntries);
+            ClasspathSnapshotVisitor snapshotVisitor = new ClasspathSnapshotVisitor(processedEntries, builder);
             root.accept(new ClasspathContentSnapshottingVisitor(snapshotVisitor));
-            builder.putAll(snapshotVisitor.getResult());
         }
         return builder.build();
     }
@@ -171,11 +169,11 @@ public class ClasspathFingerprintingStrategy implements FingerprintingStrategy {
     private class ClasspathSnapshotVisitor {
         private final RelativePathHolder relativePathHolder;
         private final HashSet<String> processedEntries;
-        private final ImmutableSortedMap.Builder<String, NormalizedFileSnapshot> builder;
+        private final ImmutableMap.Builder<String, NormalizedFileSnapshot> builder;
 
-        public ClasspathSnapshotVisitor(HashSet<String> processedEntries) {
+        public ClasspathSnapshotVisitor(HashSet<String> processedEntries, ImmutableMap.Builder<String, NormalizedFileSnapshot> builder) {
             this.processedEntries = processedEntries;
-            this.builder = ImmutableSortedMap.naturalOrder();
+            this.builder = builder;
             this.relativePathHolder = new RelativePathHolder();
         }
 
@@ -203,10 +201,6 @@ public class ClasspathFingerprintingStrategy implements FingerprintingStrategy {
 
         public void postVisitDirectory() {
             relativePathHolder.leave();
-        }
-
-        public ImmutableSortedMap<String, NormalizedFileSnapshot> getResult() {
-            return builder.build();
         }
     }
 }
