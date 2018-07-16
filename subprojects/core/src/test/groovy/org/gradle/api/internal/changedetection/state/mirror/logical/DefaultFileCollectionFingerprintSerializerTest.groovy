@@ -16,6 +16,7 @@
 
 package org.gradle.api.internal.changedetection.state.mirror.logical
 
+import com.google.common.collect.ImmutableMultimap
 import org.gradle.api.internal.cache.StringInterner
 import org.gradle.api.internal.changedetection.state.DefaultNormalizedFileSnapshot
 import org.gradle.api.internal.changedetection.state.NonNormalizedFileSnapshot
@@ -41,7 +42,8 @@ class DefaultFileCollectionFingerprintSerializerTest extends SerializerSpec {
             '/2': IgnoredPathFingerprint.create(FileType.RegularFile, hash),
             '/3': new NonNormalizedFileSnapshot("/3", FileType.Missing, PhysicalMissingSnapshot.SIGNATURE),
             strategy,
-            combinedHash
+            combinedHash,
+            ImmutableMultimap.of('/1', HashCode.fromInt(1234))
         ), serializer)
 
         then:
@@ -63,6 +65,7 @@ class DefaultFileCollectionFingerprintSerializerTest extends SerializerSpec {
             normalizedContentHash == PhysicalMissingSnapshot.SIGNATURE
         }
         out.strategy == strategy
+        out.rootHashes == ImmutableMultimap.of('/1', HashCode.fromInt(1234))
 
         where:
         strategy << FingerprintCompareStrategy.values()
@@ -75,6 +78,7 @@ class DefaultFileCollectionFingerprintSerializerTest extends SerializerSpec {
             "/2": new NonNormalizedFileSnapshot('/2', FileType.RegularFile, HashCode.fromInt(5678)),
             "/1": new DefaultNormalizedFileSnapshot('1', FileType.Missing, PhysicalMissingSnapshot.SIGNATURE),
             FingerprintCompareStrategy.ABSOLUTE,
+            null,
             null
         ), serializer)
 

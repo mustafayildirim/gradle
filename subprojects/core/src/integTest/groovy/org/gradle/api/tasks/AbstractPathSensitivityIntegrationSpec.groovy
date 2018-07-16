@@ -19,7 +19,10 @@ package org.gradle.api.tasks
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import spock.lang.Unroll
 
-import static org.gradle.api.tasks.PathSensitivity.*
+import static org.gradle.api.tasks.PathSensitivity.ABSOLUTE
+import static org.gradle.api.tasks.PathSensitivity.NAME_ONLY
+import static org.gradle.api.tasks.PathSensitivity.NONE
+import static org.gradle.api.tasks.PathSensitivity.RELATIVE
 
 @Unroll
 abstract class AbstractPathSensitivityIntegrationSpec extends AbstractIntegrationSpec {

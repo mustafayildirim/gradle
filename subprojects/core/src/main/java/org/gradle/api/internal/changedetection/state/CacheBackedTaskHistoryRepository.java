@@ -220,7 +220,7 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
             } else if (newEntryCount == 0) {
                 filesSnapshot = EmptyFileCollectionSnapshot.INSTANCE;
             } else {
-                filesSnapshot = new DefaultFileCollectionFingerprint(outputEntries.build(), FingerprintCompareStrategy.ABSOLUTE, null);
+                filesSnapshot = new DefaultFileCollectionFingerprint(outputEntries.build(), FingerprintCompareStrategy.ABSOLUTE, null, null);
             }
         } else {
             filesSnapshot = afterExecution;
