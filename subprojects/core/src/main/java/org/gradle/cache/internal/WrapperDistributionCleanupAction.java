@@ -17,7 +17,6 @@
 package org.gradle.cache.internal;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -29,15 +28,17 @@ import org.apache.commons.io.filefilter.RegexFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.internal.Result;
 import org.gradle.util.GradleVersion;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,12 +48,15 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static org.apache.commons.io.filefilter.FileFilterUtils.directoryFileFilter;
+import static org.gradle.internal.Result.error;
+import static org.gradle.internal.Result.value;
 import static org.gradle.util.CollectionUtils.single;
 
 public class WrapperDistributionCleanupAction {
 
     @VisibleForTesting static final String WRAPPER_DISTRIBUTION_FILE_PATH = "wrapper/dists";
     private static final Logger LOGGER = Logging.getLogger(WrapperDistributionCleanupAction.class);
+    private static final String BUILD_RECEIPT_ZIP_ENTRY_PATH = StringUtils.removeStart(GradleVersion.RESOURCE_NAME, "/");
 
     private static final ImmutableMap<String, Pattern> JAR_FILE_PATTERNS_BY_PREFIX;
     static {
@@ -102,68 +106,76 @@ public class WrapperDistributionCleanupAction {
     }
 
     private Multimap<GradleVersion, File> determineChecksumDirsByVersion() {
-        Multimap<GradleVersion, File> result = ArrayListMultimap.create();
+        Multimap<GradleVersion, File> checksumDirsByVersion = ArrayListMultimap.create();
         for (File dir : listDirs(distsDir)) {
             for (File checksumDir : listDirs(dir)) {
-                try {
-                    GradleVersion gradleVersion = determineGradleVersionFromBuildReceipt(checksumDir);
-                    result.put(gradleVersion, checksumDir);
-                } catch (Exception e) {
-                    // TODO see https://github.com/gradle/gradle-private/issues/1379
-                    // LOGGER.debug("Could not determine Gradle version for {}", checksumDir, e);
+                Result<GradleVersion> result = determineGradleVersionFromBuildReceipt(checksumDir);
+                if (result.hasValue()) {
+                    checksumDirsByVersion.put(result.getValue(), checksumDir);
+                } else {
+                    LOGGER.debug("Could not determine Gradle version for {}: {}", checksumDir, result.getError());
                 }
             }
         }
-        return result;
+        return checksumDirsByVersion;
     }
 
-    private GradleVersion determineGradleVersionFromBuildReceipt(File checksumDir) throws Exception {
+    private Result<GradleVersion> determineGradleVersionFromBuildReceipt(File checksumDir) {
         List<File> subDirs = listDirs(checksumDir);
-        Preconditions.checkArgument(subDirs.size() == 1, "A Gradle distribution must contain exactly one subdirectory: %s", subDirs);
+        if (subDirs.size() != 1) {
+            return error("A Gradle distribution must contain exactly one subdirectory: {0}", subDirs);
+        }
         return determineGradleVersionFromDistribution(single(subDirs));
     }
 
     @VisibleForTesting
-    protected GradleVersion determineGradleVersionFromDistribution(File distributionHomeDir) throws Exception {
-        List<File> checkedJarFiles = new ArrayList<File>();
+    protected Result<GradleVersion> determineGradleVersionFromDistribution(File distributionHomeDir) {
+        Map<File, String> checkedJarFiles = new LinkedHashMap<File, String>();
         for (Map.Entry<String, Pattern> entry : JAR_FILE_PATTERNS_BY_PREFIX.entrySet()) {
             List<File> jarFiles = listFiles(new File(distributionHomeDir, "lib"), new RegexFileFilter(entry.getValue()));
             if (!jarFiles.isEmpty()) {
-                Preconditions.checkArgument(jarFiles.size() == 1, "A Gradle distribution must contain at most one %s-*.jar: %s", entry.getKey(), jarFiles);
-                File jarFile = single(jarFiles);
-                GradleVersion gradleVersion = readGradleVersionFromJarFile(jarFile);
-                if (gradleVersion != null) {
-                    return gradleVersion;
+                if (jarFiles.size() > 1) {
+                    return error("A Gradle distribution must contain at most one {0}-*.jar: {1}", entry.getKey(), jarFiles);
                 }
-                checkedJarFiles.add(jarFile);
+                File jarFile = single(jarFiles);
+                Result<GradleVersion> result = readGradleVersionFromJarFile(jarFile);
+                if (result.hasValue()) {
+                    return result;
+                }
+                checkedJarFiles.put(jarFile, result.getError());
             }
         }
-        throw new IllegalArgumentException("No checked JAR file contained a build receipt: " + checkedJarFiles);
+        return error("No checked JAR file contained a build receipt: {0}", checkedJarFiles);
     }
 
-    private GradleVersion readGradleVersionFromJarFile(File jarFile) throws Exception {
+    private Result<GradleVersion> readGradleVersionFromJarFile(File jarFile) {
         ZipFile zipFile = null;
         try {
             zipFile = new ZipFile(jarFile);
             return readGradleVersionFromBuildReceipt(zipFile);
+        } catch (IOException e) {
+            return error("Could not open {0}: {1}: {2}", jarFile, e.getClass().getName(), e.getMessage());
         } finally {
             IOUtils.closeQuietly(zipFile);
         }
     }
 
-    private GradleVersion readGradleVersionFromBuildReceipt(ZipFile zipFile) throws Exception {
-        ZipEntry zipEntry = zipFile.getEntry(StringUtils.removeStart(GradleVersion.RESOURCE_NAME, "/"));
+    private Result<GradleVersion> readGradleVersionFromBuildReceipt(ZipFile zipFile) {
+        ZipEntry zipEntry = zipFile.getEntry(BUILD_RECEIPT_ZIP_ENTRY_PATH);
         if (zipEntry == null) {
-            return null;
+            return error("JAR does not contain " + BUILD_RECEIPT_ZIP_ENTRY_PATH + ": {0}", zipFile.getName());
         }
-        InputStream in = zipFile.getInputStream(zipEntry);
+        InputStream in = null;
         try {
+            in = zipFile.getInputStream(zipEntry);
             Properties properties = new Properties();
             properties.load(in);
             String versionString = properties.getProperty(GradleVersion.VERSION_NUMBER_PROPERTY);
-            return GradleVersion.version(versionString);
+            return value(GradleVersion.version(versionString));
+        } catch (Exception e) {
+            return error("Failed to read version from entry {0}: {1}: {2}", zipEntry, e.getClass().getName(), e.getMessage());
         } finally {
-            in.close();
+            IOUtils.closeQuietly(in);
         }
     }
 

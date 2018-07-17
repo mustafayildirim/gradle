@@ -29,6 +29,6 @@ class WrapperDistributionCleanupActionIntegrationTest extends AbstractIntegratio
         def gradleVersion = cleanupAction.determineGradleVersionFromDistribution(executer.distribution.gradleHomeDir)
 
         then:
-        gradleVersion == GradleVersion.current()
+        gradleVersion.value == GradleVersion.current()
     }
 }
