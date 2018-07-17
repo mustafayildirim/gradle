@@ -22,12 +22,14 @@ import groovy.lang.Closure;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.api.Action;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.GradleException;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NonNullApi;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.UnknownTaskException;
+import org.gradle.api.internal.IllegalMethodCallException;
 import org.gradle.api.internal.NamedDomainObjectContainerConfigureDelegate;
 import org.gradle.api.internal.TaskInternal;
 import org.gradle.api.internal.project.ProjectInternal;
@@ -39,6 +41,7 @@ import org.gradle.initialization.ProjectAccessListener;
 import org.gradle.internal.Cast;
 import org.gradle.internal.ImmutableActionSet;
 import org.gradle.internal.Transformers;
+import org.gradle.internal.exceptions.Contextual;
 import org.gradle.internal.metaobject.DynamicObject;
 import org.gradle.internal.operations.BuildOperationContext;
 import org.gradle.internal.operations.BuildOperationDescriptor;
@@ -86,6 +89,8 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
     private final Map<String, TaskProvider<? extends Task>> placeholders = Maps.newLinkedHashMap();
 
     private MutableModelNode modelNode;
+
+    private int numberOfLazyConfigurationActionExecuting = 0;
 
     public DefaultTaskContainer(ProjectInternal project, Instantiator instantiator, ITaskFactory taskFactory, ProjectAccessListener projectAccessListener, TaskStatistics statistics, BuildOperationExecutor buildOperationExecutor) {
         super(Task.class, instantiator, project);
@@ -564,6 +569,17 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
         return Cast.uncheckedCast(instantiator.newInstance(RealizableTaskCollection.class, type, super.withType(type), modelNode, instantiator));
     }
 
+    @Override
+    public boolean isLazyTaskConfiguring() {
+        return numberOfLazyConfigurationActionExecuting != 0;
+    }
+
+    public void assertCanExecute(String methodName) {
+        if (isLazyTaskConfiguring()) {
+            throw new IllegalMethodCallException("TaskContainer#" + methodName + " cannot be executed while configuring a lazy task");
+        }
+    }
+
     // Cannot be private due to reflective instantiation
     public class TaskCreatingProvider<I extends Task> extends DefaultTaskProvider<I> {
         private Object[] constructorArgs;
@@ -585,7 +601,12 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
         public void configure(final Action<? super I> action) {
             if (task != null) {
                 // Already realized, just run the action now
-                action.execute(task);
+                numberOfLazyConfigurationActionExecuting++;
+                try {
+                    action.execute(task);
+                } finally {
+                    numberOfLazyConfigurationActionExecuting--;
+                }
                 return;
             }
             // Collect any container level add actions then add the task specific action
@@ -613,7 +634,12 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
                                 statistics.lazyTaskRealized(getType());
 
                                 // Register the task
-                                add(task, onCreate);
+                                numberOfLazyConfigurationActionExecuting++;
+                                try {
+                                    add(task, onCreate);
+                                } finally {
+                                    numberOfLazyConfigurationActionExecuting--;
+                                }
                                 // TODO removing this stuff from the store should be handled through some sort of decoration
                                 context.setResult(REALIZE_RESULT);
                             } catch (RuntimeException ex) {

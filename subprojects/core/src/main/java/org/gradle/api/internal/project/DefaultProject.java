@@ -23,6 +23,7 @@ import groovy.lang.MissingPropertyException;
 import org.gradle.api.Action;
 import org.gradle.api.AntBuilder;
 import org.gradle.api.CircularReferenceException;
+import org.gradle.api.GradleException;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectFactory;
@@ -50,6 +51,7 @@ import org.gradle.api.internal.DynamicPropertyNamer;
 import org.gradle.api.internal.ExtensibleDynamicObject;
 import org.gradle.api.internal.FactoryNamedDomainObjectContainer;
 import org.gradle.api.internal.GradleInternal;
+import org.gradle.api.internal.IllegalMethodCallException;
 import org.gradle.api.internal.NoConventionMapping;
 import org.gradle.api.internal.ProcessOperations;
 import org.gradle.api.internal.artifacts.Module;
@@ -83,6 +85,7 @@ import org.gradle.internal.Actions;
 import org.gradle.internal.Factories;
 import org.gradle.internal.Factory;
 import org.gradle.internal.event.ListenerBroadcast;
+import org.gradle.internal.exceptions.Contextual;
 import org.gradle.internal.logging.LoggingManagerInternal;
 import org.gradle.internal.logging.StandardOutputCapture;
 import org.gradle.internal.metaobject.BeanDynamicObject;
@@ -640,11 +643,13 @@ public class DefaultProject extends AbstractPluginAware implements ProjectIntern
 
     @Override
     public void subprojects(Action<? super Project> action) {
+        assertCanExecute("subprojects(Action)");
         getProjectConfigurator().subprojects(getSubprojects(), action);
     }
 
     @Override
     public void allprojects(Action<? super Project> action) {
+        assertCanExecute("allprojects(Action)");
         getProjectConfigurator().allprojects(getAllprojects(), action);
     }
 
@@ -976,21 +981,25 @@ public class DefaultProject extends AbstractPluginAware implements ProjectIntern
 
     @Override
     public void beforeEvaluate(Action<? super Project> action) {
+        assertCanExecute("beforeEvaluate(Action)");
         evaluationListener.add("beforeEvaluate", action);
     }
 
     @Override
     public void afterEvaluate(Action<? super Project> action) {
+        assertCanExecute("afterEvaluate(Action)");
         evaluationListener.add("afterEvaluate", action);
     }
 
     @Override
     public void beforeEvaluate(Closure closure) {
+        assertCanExecute("beforeEvaluate(Closure)");
         evaluationListener.add(new ClosureBackedMethodInvocationDispatch("beforeEvaluate", closure));
     }
 
     @Override
     public void afterEvaluate(Closure closure) {
+        assertCanExecute("afterEvaluate(Closure)");
         evaluationListener.add(new ClosureBackedMethodInvocationDispatch("afterEvaluate", closure));
     }
 
@@ -1132,21 +1141,25 @@ public class DefaultProject extends AbstractPluginAware implements ProjectIntern
 
     @Override
     public void subprojects(Closure configureClosure) {
+        assertCanExecute("subprojects(Closure)");
         getProjectConfigurator().subprojects(getSubprojects(), configureClosure);
     }
 
     @Override
     public void allprojects(Closure configureClosure) {
+        assertCanExecute("allprojects(Closure)");
         getProjectConfigurator().allprojects(getAllprojects(), configureClosure);
     }
 
     @Override
     public Project project(String path, Closure configureClosure) {
+        assertCanExecute("project(String, Closure)");
         return getProjectConfigurator().project(project(path), configureClosure);
     }
 
     @Override
     public Project project(String path, Action<? super Project> configureAction) {
+        assertCanExecute("project(String, Action)");
         return getProjectConfigurator().project(project(path), configureAction);
     }
 
@@ -1403,5 +1416,11 @@ public class DefaultProject extends AbstractPluginAware implements ProjectIntern
         return nextBatch.isEmpty()
             ? null
             : nextBatch.getSource();
+    }
+
+    private void assertCanExecute(String methodName) {
+        if (taskContainer.isLazyTaskConfiguring()) {
+            throw new IllegalMethodCallException("Project#" + methodName + " cannot be executed while configuring a lazy task");
+        }
     }
 }
