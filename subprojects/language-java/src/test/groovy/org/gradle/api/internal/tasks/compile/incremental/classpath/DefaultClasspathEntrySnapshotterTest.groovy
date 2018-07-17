@@ -46,7 +46,7 @@ class DefaultClasspathEntrySnapshotterTest extends Specification {
         expect:
         def snapshot = snapshotter.createSnapshot(HashCode.fromInt(123), temp.file("foo"))
         snapshot.hashes.isEmpty()
-        snapshot.analysis
+        snapshot.classAnalysis
     }
 
     def "creates snapshot of an entry with classes"() {
@@ -83,6 +83,6 @@ class DefaultClasspathEntrySnapshotterTest extends Specification {
 
         and:
         snapshot.hashes == ["Foo": f1Hash, "com.Foo2": f2Hash]
-        snapshot.analysis
+        snapshot.classAnalysis
     }
 }

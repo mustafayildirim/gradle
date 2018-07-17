@@ -36,7 +36,7 @@ import java.util.Map;
 
 import static org.gradle.internal.FileUtils.hasExtension;
 
-class DefaultClasspathEntrySnapshotter {
+public class DefaultClasspathEntrySnapshotter {
     private static final Logger LOGGER = Logging.getLogger(DefaultClasspathEntrySnapshotter.class);
 
     private final StreamHasher hasher;
@@ -59,9 +59,9 @@ class DefaultClasspathEntrySnapshotter {
                 contents.visit(new EntryVisitor(accumulator, hashes));
             }
         } catch (Exception e) {
-            accumulator.fullRebuildNeeded("classpath entry" + classpathEntry + " could not be analyzed. See the debug log for more details");
+            accumulator.fullRebuildNeeded(classpathEntry + " could not be analyzed for incremental compilation. See the debug log for more details");
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Could not analyze classpath entry " + classpathEntry, e);
+                LOGGER.debug("Could not analyze " + classpathEntry + " for incremental compilation", e);
             }
         }
 
@@ -113,9 +113,9 @@ class DefaultClasspathEntrySnapshotter {
                 accumulator.addClass(analysis);
                 hashes.put(analysis.getClassName(), classFileHash);
             } catch (Exception e) {
-                accumulator.fullRebuildNeeded("class file " + fileDetails.getName() + " could not be analyzed. See the debug log for more details");
+                accumulator.fullRebuildNeeded(fileDetails.getName() + " could not be analyzed for incremental compilation. See the debug log for more details");
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Could not analyze class file " + fileDetails.getName(), e);
+                    LOGGER.debug("Could not analyze " + fileDetails.getName()+ " for incremental compilation", e);
                 }
             }
         }
