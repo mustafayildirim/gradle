@@ -60,6 +60,12 @@ public class DefaultFileCollectionFingerprint implements FileCollectionSnapshot 
 
     @Override
     public boolean visitChangesSince(FileCollectionSnapshot oldSnapshot, String title, boolean includeAdded, TaskStateChangeVisitor visitor) {
+        if (hash != null && oldSnapshot instanceof DefaultFileCollectionFingerprint) {
+            DefaultFileCollectionFingerprint oldFingerprint = (DefaultFileCollectionFingerprint) oldSnapshot;
+            if (hash.equals(oldFingerprint.hash)) {
+                return true;
+            }
+        }
         return strategy.visitChangesSince(visitor, getSnapshots(), oldSnapshot.getSnapshots(), title, includeAdded);
     }
 
