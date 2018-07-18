@@ -16,12 +16,20 @@
 
 package org.gradle.api.internal;
 
+import org.gradle.internal.os.OperatingSystem;
+
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 public class GradleProcessEnvironment {
-    private static final Map<String, String> ENVS = new ConcurrentHashMap<String, String>(System.getenv());
+    private static final Map<String, String> ENVS;
+
+    static {
+        ENVS = new ConcurrentSkipListMap<String, String>(OperatingSystem.current().isWindows() ? NameComparator.INSTANCE : null);
+        ENVS.putAll(System.getenv());
+    }
 
     public static Map<String, String> getenv() {
         return Collections.unmodifiableMap(ENVS);
@@ -31,12 +39,40 @@ public class GradleProcessEnvironment {
         return ENVS.get(env);
     }
 
-    public static void unsetenv(String name) {
-        ENVS.remove(name);
+    public static void unsetenv(String env) {
+        ENVS.remove(env);
     }
 
-    public static void setenv(String name, String value) {
-        ENVS.put(name, value);
+    public static void setenv(String env, String value) {
+        ENVS.put(env, value);
+    }
+
+    // This is copied from JDK
+    // http://hg.openjdk.java.net/jdk/jdk/file/99a7d10f248c/src/java.base/windows/classes/java/lang/ProcessEnvironment.java#l195
+    private enum NameComparator implements Comparator<String> {
+        INSTANCE;
+
+        public int compare(String s1, String s2) {
+            // We can't use String.compareToIgnoreCase since it
+            // canonicalizes to lower case, while Windows
+            // canonicalizes to upper case!  For example, "_" should
+            // sort *after* "Z", not before.
+            int n1 = s1.length();
+            int n2 = s2.length();
+            int min = Math.min(n1, n2);
+            for (int i = 0; i < min; i++) {
+                char c1 = s1.charAt(i);
+                char c2 = s2.charAt(i);
+                if (c1 != c2) {
+                    c1 = Character.toUpperCase(c1);
+                    c2 = Character.toUpperCase(c2);
+                    if (c1 != c2)
+                        // No overflow because of numeric promotion
+                        return c1 - c2;
+                }
+            }
+            return n1 - n2;
+        }
     }
 }
 
